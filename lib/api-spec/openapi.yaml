@@ -1,22 +1,24 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Kick Bot API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: bot
+    description: Bot management
+  - name: messages
+    description: Message management
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +26,114 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /bot/status:
+    get:
+      operationId: getBotStatus
+      tags: [bot]
+      summary: Get bot status
+      responses:
+        "200":
+          description: Bot status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+
+  /bot/start:
+    post:
+      operationId: startBot
+      tags: [bot]
+      summary: Start the bot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartBotBody"
+      responses:
+        "200":
+          description: Bot started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+
+  /bot/stop:
+    post:
+      operationId: stopBot
+      tags: [bot]
+      summary: Stop the bot
+      responses:
+        "200":
+          description: Bot stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+
+  /bot/logs:
+    get:
+      operationId: getBotLogs
+      tags: [bot]
+      summary: Get bot activity logs
+      responses:
+        "200":
+          description: Bot logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotLogsResponse"
+
+  /messages:
+    get:
+      operationId: getMessages
+      tags: [messages]
+      summary: Get all messages
+      responses:
+        "200":
+          description: Messages list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagesResponse"
+    post:
+      operationId: createMessage
+      tags: [messages]
+      summary: Create a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMessageBody"
+      responses:
+        "201":
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /messages/{id}:
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete a message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Message deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteMessageResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +144,101 @@ components:
       required:
         - status
 
+    BotStatus:
+      type: object
+      properties:
+        running:
+          type: boolean
+        channelName:
+          type: string
+        isLive:
+          type: boolean
+        messagesSent:
+          type: integer
+        intervalSeconds:
+          type: integer
+        startedAt:
+          type: string
+          nullable: true
+      required:
+        - running
+        - isLive
+        - messagesSent
+        - intervalSeconds
+
+    StartBotBody:
+      type: object
+      properties:
+        channelName:
+          type: string
+        intervalSeconds:
+          type: integer
+      required:
+        - channelName
+        - intervalSeconds
+
+    BotLogsResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/BotLog"
+      required:
+        - logs
+
+    BotLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        event:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+      required:
+        - id
+        - event
+        - timestamp
+
+    MessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+      required:
+        - messages
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - text
+        - createdAt
+
+    CreateMessageBody:
+      type: object
+      properties:
+        text:
+          type: string
+      required:
+        - text
+
+    DeleteMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
