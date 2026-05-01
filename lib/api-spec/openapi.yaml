@@ -171,10 +171,16 @@ components:
       properties:
         channelName:
           type: string
+        email:
+          type: string
+        password:
+          type: string
         intervalSeconds:
           type: integer
       required:
         - channelName
+        - email
+        - password
         - intervalSeconds
 
     BotLogsResponse:

@@ -31,6 +31,8 @@ export const GetBotStatusResponse = zod.object({
  */
 export const StartBotBody = zod.object({
   channelName: zod.string(),
+  email: zod.string(),
+  password: zod.string(),
   intervalSeconds: zod.number(),
 });
 

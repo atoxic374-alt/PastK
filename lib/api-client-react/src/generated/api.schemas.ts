@@ -20,6 +20,8 @@ export interface BotStatus {
 
 export interface StartBotBody {
   channelName: string;
+  email: string;
+  password: string;
   intervalSeconds: number;
 }
 
