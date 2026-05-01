@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Kick Bot API
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 import * as zod from "zod";
 
@@ -34,6 +34,17 @@ export const GetBotStatusResponse = zod.object({
   messagesSent: zod.number(),
   intervalSeconds: zod.number(),
   startedAt: zod.string().nullish(),
+  liveEnteredAt: zod
+    .string()
+    .nullish()
+    .describe("Timestamp when bot entered the current live stream"),
+  liveSessionCount: zod
+    .number()
+    .describe("Number of live sessions joined in this bot run"),
+  streamStartedAt: zod
+    .string()
+    .nullish()
+    .describe("When the stream started (from Kick API)"),
   otpRequired: zod.boolean(),
   account: zod
     .object({
@@ -48,6 +59,8 @@ export const GetBotStatusResponse = zod.object({
   error: zod.string().nullish(),
   viewers: zod.number().nullish(),
   streamTitle: zod.string().nullish(),
+  category: zod.string().nullish(),
+  channelFollowers: zod.number().nullish(),
 });
 
 /**
@@ -77,6 +90,17 @@ export const StartBotResponse = zod.object({
   messagesSent: zod.number(),
   intervalSeconds: zod.number(),
   startedAt: zod.string().nullish(),
+  liveEnteredAt: zod
+    .string()
+    .nullish()
+    .describe("Timestamp when bot entered the current live stream"),
+  liveSessionCount: zod
+    .number()
+    .describe("Number of live sessions joined in this bot run"),
+  streamStartedAt: zod
+    .string()
+    .nullish()
+    .describe("When the stream started (from Kick API)"),
   otpRequired: zod.boolean(),
   account: zod
     .object({
@@ -91,6 +115,8 @@ export const StartBotResponse = zod.object({
   error: zod.string().nullish(),
   viewers: zod.number().nullish(),
   streamTitle: zod.string().nullish(),
+  category: zod.string().nullish(),
+  channelFollowers: zod.number().nullish(),
 });
 
 /**
@@ -113,6 +139,17 @@ export const StopBotResponse = zod.object({
   messagesSent: zod.number(),
   intervalSeconds: zod.number(),
   startedAt: zod.string().nullish(),
+  liveEnteredAt: zod
+    .string()
+    .nullish()
+    .describe("Timestamp when bot entered the current live stream"),
+  liveSessionCount: zod
+    .number()
+    .describe("Number of live sessions joined in this bot run"),
+  streamStartedAt: zod
+    .string()
+    .nullish()
+    .describe("When the stream started (from Kick API)"),
   otpRequired: zod.boolean(),
   account: zod
     .object({
@@ -127,6 +164,8 @@ export const StopBotResponse = zod.object({
   error: zod.string().nullish(),
   viewers: zod.number().nullish(),
   streamTitle: zod.string().nullish(),
+  category: zod.string().nullish(),
+  channelFollowers: zod.number().nullish(),
 });
 
 /**
@@ -153,6 +192,17 @@ export const SubmitOtpResponse = zod.object({
   messagesSent: zod.number(),
   intervalSeconds: zod.number(),
   startedAt: zod.string().nullish(),
+  liveEnteredAt: zod
+    .string()
+    .nullish()
+    .describe("Timestamp when bot entered the current live stream"),
+  liveSessionCount: zod
+    .number()
+    .describe("Number of live sessions joined in this bot run"),
+  streamStartedAt: zod
+    .string()
+    .nullish()
+    .describe("When the stream started (from Kick API)"),
   otpRequired: zod.boolean(),
   account: zod
     .object({
@@ -167,6 +217,8 @@ export const SubmitOtpResponse = zod.object({
   error: zod.string().nullish(),
   viewers: zod.number().nullish(),
   streamTitle: zod.string().nullish(),
+  category: zod.string().nullish(),
+  channelFollowers: zod.number().nullish(),
 });
 
 /**
@@ -218,6 +270,7 @@ export const SearchChannelsResponse = zod.object({
       category: zod.string().nullish(),
       followersCount: zod.number().nullish(),
       thumbnail: zod.string().nullish(),
+      streamStartedAt: zod.string().nullish(),
     }),
   ),
 });
@@ -239,6 +292,30 @@ export const GetChannelStatusResponse = zod.object({
   category: zod.string().nullish(),
   followersCount: zod.number().nullish(),
   thumbnail: zod.string().nullish(),
+  streamStartedAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Get channel recent past streams
+ */
+export const GetRecentStreamsParams = zod.object({
+  slug: zod.coerce.string(),
+});
+
+export const GetRecentStreamsResponse = zod.object({
+  streams: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string().nullish(),
+      startedAt: zod.string().nullish(),
+      endedAt: zod.string().nullish(),
+      durationSeconds: zod.number().nullish(),
+      peakViewers: zod.number().nullish(),
+      category: zod.string().nullish(),
+      thumbnail: zod.string().nullish(),
+    }),
+  ),
+  totalStreams: zod.number().nullish(),
 });
 
 /**

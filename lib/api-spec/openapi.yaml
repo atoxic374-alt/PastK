@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Api
-  version: 0.2.0
+  version: 0.3.0
   description: Kick Bot API
 servers:
   - url: /api
@@ -153,6 +153,25 @@ paths:
                 $ref: "#/components/schemas/ChannelInfo"
           description: OK
 
+  /channels/{slug}/recent-streams:
+    get:
+      operationId: getRecentStreams
+      tags: [channels]
+      summary: Get channel recent past streams
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecentStreamsResponse"
+          description: OK
+
   /messages:
     get:
       operationId: getMessages
@@ -258,6 +277,17 @@ components:
         startedAt:
           type: string
           nullable: true
+        liveEnteredAt:
+          type: string
+          nullable: true
+          description: Timestamp when bot entered the current live stream
+        liveSessionCount:
+          type: integer
+          description: Number of live sessions joined in this bot run
+        streamStartedAt:
+          type: string
+          nullable: true
+          description: When the stream started (from Kick API)
         otpRequired:
           type: boolean
         account:
@@ -272,12 +302,19 @@ components:
         streamTitle:
           type: string
           nullable: true
+        category:
+          type: string
+          nullable: true
+        channelFollowers:
+          type: integer
+          nullable: true
       required:
         - state
         - isLive
         - messagesSent
         - intervalSeconds
         - otpRequired
+        - liveSessionCount
 
     StartBotBody:
       type: object
@@ -357,6 +394,9 @@ components:
         thumbnail:
           type: string
           nullable: true
+        streamStartedAt:
+          type: string
+          nullable: true
       required: [slug, username, isLive]
 
     ChannelSearchResponse:
@@ -367,6 +407,46 @@ components:
           items:
             $ref: "#/components/schemas/ChannelInfo"
       required: [results]
+
+    PastStream:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          nullable: true
+        endedAt:
+          type: string
+          nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
+        peakViewers:
+          type: integer
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        thumbnail:
+          type: string
+          nullable: true
+      required: [id]
+
+    RecentStreamsResponse:
+      type: object
+      properties:
+        streams:
+          type: array
+          items:
+            $ref: "#/components/schemas/PastStream"
+        totalStreams:
+          type: integer
+          nullable: true
+      required: [streams]
 
     MessagesResponse:
       type: object

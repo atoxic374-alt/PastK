@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Kick Bot API
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
@@ -28,6 +28,7 @@ import type {
   Message,
   MessagesResponse,
   OtpBody,
+  RecentStreamsResponse,
   SearchChannelsParams,
   StartBotBody,
 } from "./api.schemas";
@@ -765,6 +766,93 @@ export function useGetChannelStatus<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetChannelStatusQueryOptions(slug, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get channel recent past streams
+ */
+export const getGetRecentStreamsUrl = (slug: string) => {
+  return `/api/channels/${slug}/recent-streams`;
+};
+
+export const getRecentStreams = async (
+  slug: string,
+  options?: RequestInit,
+): Promise<RecentStreamsResponse> => {
+  return customFetch<RecentStreamsResponse>(getGetRecentStreamsUrl(slug), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRecentStreamsQueryKey = (slug: string) => {
+  return [`/api/channels/${slug}/recent-streams`] as const;
+};
+
+export const getGetRecentStreamsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecentStreams>>,
+  TError = ErrorType<unknown>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRecentStreams>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRecentStreamsQueryKey(slug);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRecentStreams>>
+  > = ({ signal }) => getRecentStreams(slug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!slug,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecentStreams>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRecentStreamsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecentStreams>>
+>;
+export type GetRecentStreamsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get channel recent past streams
+ */
+
+export function useGetRecentStreams<
+  TData = Awaited<ReturnType<typeof getRecentStreams>>,
+  TError = ErrorType<unknown>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRecentStreams>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRecentStreamsQueryOptions(slug, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

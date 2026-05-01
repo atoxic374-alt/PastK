@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Kick Bot API
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 export interface HealthStatus {
   status: string;
@@ -39,11 +39,19 @@ export interface BotStatus {
   messagesSent: number;
   intervalSeconds: number;
   startedAt?: string | null;
+  /** Timestamp when bot entered the current live stream */
+  liveEnteredAt?: string | null;
+  /** Number of live sessions joined in this bot run */
+  liveSessionCount: number;
+  /** When the stream started (from Kick API) */
+  streamStartedAt?: string | null;
   otpRequired: boolean;
   account?: AccountInfo | null;
   error?: string | null;
   viewers?: number | null;
   streamTitle?: string | null;
+  category?: string | null;
+  channelFollowers?: number | null;
 }
 
 export interface StartBotBody {
@@ -82,10 +90,27 @@ export interface ChannelInfo {
   category?: string | null;
   followersCount?: number | null;
   thumbnail?: string | null;
+  streamStartedAt?: string | null;
 }
 
 export interface ChannelSearchResponse {
   results: ChannelInfo[];
+}
+
+export interface PastStream {
+  id: number;
+  title?: string | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  durationSeconds?: number | null;
+  peakViewers?: number | null;
+  category?: string | null;
+  thumbnail?: string | null;
+}
+
+export interface RecentStreamsResponse {
+  streams: PastStream[];
+  totalStreams?: number | null;
 }
 
 export interface Message {
