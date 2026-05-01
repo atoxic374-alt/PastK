@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Kick Bot API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import * as zod from "zod";
 
@@ -18,12 +18,36 @@ export const HealthCheckResponse = zod.object({
  * @summary Get bot status
  */
 export const GetBotStatusResponse = zod.object({
-  running: zod.boolean(),
+  state: zod.enum([
+    "idle",
+    "launching",
+    "logging_in",
+    "awaiting_otp",
+    "verifying",
+    "monitoring",
+    "live",
+    "stopped",
+    "error",
+  ]),
   channelName: zod.string().optional(),
   isLive: zod.boolean(),
   messagesSent: zod.number(),
   intervalSeconds: zod.number(),
   startedAt: zod.string().nullish(),
+  otpRequired: zod.boolean(),
+  account: zod
+    .object({
+      username: zod.string(),
+      email: zod.string().optional(),
+      avatar: zod.string().nullish(),
+      followersCount: zod.number(),
+      followingCount: zod.number(),
+      verified: zod.boolean(),
+    })
+    .nullish(),
+  error: zod.string().nullish(),
+  viewers: zod.number().nullish(),
+  streamTitle: zod.string().nullish(),
 });
 
 /**
@@ -37,24 +61,128 @@ export const StartBotBody = zod.object({
 });
 
 export const StartBotResponse = zod.object({
-  running: zod.boolean(),
+  state: zod.enum([
+    "idle",
+    "launching",
+    "logging_in",
+    "awaiting_otp",
+    "verifying",
+    "monitoring",
+    "live",
+    "stopped",
+    "error",
+  ]),
   channelName: zod.string().optional(),
   isLive: zod.boolean(),
   messagesSent: zod.number(),
   intervalSeconds: zod.number(),
   startedAt: zod.string().nullish(),
+  otpRequired: zod.boolean(),
+  account: zod
+    .object({
+      username: zod.string(),
+      email: zod.string().optional(),
+      avatar: zod.string().nullish(),
+      followersCount: zod.number(),
+      followingCount: zod.number(),
+      verified: zod.boolean(),
+    })
+    .nullish(),
+  error: zod.string().nullish(),
+  viewers: zod.number().nullish(),
+  streamTitle: zod.string().nullish(),
 });
 
 /**
  * @summary Stop the bot
  */
 export const StopBotResponse = zod.object({
-  running: zod.boolean(),
+  state: zod.enum([
+    "idle",
+    "launching",
+    "logging_in",
+    "awaiting_otp",
+    "verifying",
+    "monitoring",
+    "live",
+    "stopped",
+    "error",
+  ]),
   channelName: zod.string().optional(),
   isLive: zod.boolean(),
   messagesSent: zod.number(),
   intervalSeconds: zod.number(),
   startedAt: zod.string().nullish(),
+  otpRequired: zod.boolean(),
+  account: zod
+    .object({
+      username: zod.string(),
+      email: zod.string().optional(),
+      avatar: zod.string().nullish(),
+      followersCount: zod.number(),
+      followingCount: zod.number(),
+      verified: zod.boolean(),
+    })
+    .nullish(),
+  error: zod.string().nullish(),
+  viewers: zod.number().nullish(),
+  streamTitle: zod.string().nullish(),
+});
+
+/**
+ * @summary Submit OTP code for login
+ */
+export const SubmitOtpBody = zod.object({
+  code: zod.string(),
+});
+
+export const SubmitOtpResponse = zod.object({
+  state: zod.enum([
+    "idle",
+    "launching",
+    "logging_in",
+    "awaiting_otp",
+    "verifying",
+    "monitoring",
+    "live",
+    "stopped",
+    "error",
+  ]),
+  channelName: zod.string().optional(),
+  isLive: zod.boolean(),
+  messagesSent: zod.number(),
+  intervalSeconds: zod.number(),
+  startedAt: zod.string().nullish(),
+  otpRequired: zod.boolean(),
+  account: zod
+    .object({
+      username: zod.string(),
+      email: zod.string().optional(),
+      avatar: zod.string().nullish(),
+      followersCount: zod.number(),
+      followingCount: zod.number(),
+      verified: zod.boolean(),
+    })
+    .nullish(),
+  error: zod.string().nullish(),
+  viewers: zod.number().nullish(),
+  streamTitle: zod.string().nullish(),
+});
+
+/**
+ * @summary Get logged-in account info
+ */
+export const GetBotAccountResponse = zod.object({
+  account: zod
+    .object({
+      username: zod.string(),
+      email: zod.string().optional(),
+      avatar: zod.string().nullish(),
+      followersCount: zod.number(),
+      followingCount: zod.number(),
+      verified: zod.boolean(),
+    })
+    .nullable(),
 });
 
 /**
@@ -65,10 +193,52 @@ export const GetBotLogsResponse = zod.object({
     zod.object({
       id: zod.number(),
       event: zod.string(),
-      message: zod.string().optional(),
+      message: zod.string().nullish(),
       timestamp: zod.string(),
     }),
   ),
+});
+
+/**
+ * @summary Search Kick channels
+ */
+export const SearchChannelsQueryParams = zod.object({
+  q: zod.coerce.string(),
+});
+
+export const SearchChannelsResponse = zod.object({
+  results: zod.array(
+    zod.object({
+      slug: zod.string(),
+      username: zod.string(),
+      avatar: zod.string().nullish(),
+      isLive: zod.boolean(),
+      viewers: zod.number().nullish(),
+      streamTitle: zod.string().nullish(),
+      category: zod.string().nullish(),
+      followersCount: zod.number().nullish(),
+      thumbnail: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get channel live status
+ */
+export const GetChannelStatusParams = zod.object({
+  slug: zod.coerce.string(),
+});
+
+export const GetChannelStatusResponse = zod.object({
+  slug: zod.string(),
+  username: zod.string(),
+  avatar: zod.string().nullish(),
+  isLive: zod.boolean(),
+  viewers: zod.number().nullish(),
+  streamTitle: zod.string().nullish(),
+  category: zod.string().nullish(),
+  followersCount: zod.number().nullish(),
+  thumbnail: zod.string().nullish(),
 });
 
 /**

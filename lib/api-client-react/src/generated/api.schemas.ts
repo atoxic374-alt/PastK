@@ -3,19 +3,47 @@
  * Do not edit manually.
  * Api
  * Kick Bot API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 export interface HealthStatus {
   status: string;
 }
 
+export type BotState = (typeof BotState)[keyof typeof BotState];
+
+export const BotState = {
+  idle: "idle",
+  launching: "launching",
+  logging_in: "logging_in",
+  awaiting_otp: "awaiting_otp",
+  verifying: "verifying",
+  monitoring: "monitoring",
+  live: "live",
+  stopped: "stopped",
+  error: "error",
+} as const;
+
+export interface AccountInfo {
+  username: string;
+  email?: string;
+  avatar?: string | null;
+  followersCount: number;
+  followingCount: number;
+  verified: boolean;
+}
+
 export interface BotStatus {
-  running: boolean;
+  state: BotState;
   channelName?: string;
   isLive: boolean;
   messagesSent: number;
   intervalSeconds: number;
   startedAt?: string | null;
+  otpRequired: boolean;
+  account?: AccountInfo | null;
+  error?: string | null;
+  viewers?: number | null;
+  streamTitle?: string | null;
 }
 
 export interface StartBotBody {
@@ -25,15 +53,39 @@ export interface StartBotBody {
   intervalSeconds: number;
 }
 
+export interface OtpBody {
+  code: string;
+}
+
+export interface AccountInfoResponse {
+  account: AccountInfo | null;
+}
+
 export interface BotLog {
   id: number;
   event: string;
-  message?: string;
+  message?: string | null;
   timestamp: string;
 }
 
 export interface BotLogsResponse {
   logs: BotLog[];
+}
+
+export interface ChannelInfo {
+  slug: string;
+  username: string;
+  avatar?: string | null;
+  isLive: boolean;
+  viewers?: number | null;
+  streamTitle?: string | null;
+  category?: string | null;
+  followersCount?: number | null;
+  thumbnail?: string | null;
+}
+
+export interface ChannelSearchResponse {
+  results: ChannelInfo[];
 }
 
 export interface Message {
@@ -53,3 +105,7 @@ export interface CreateMessageBody {
 export interface DeleteMessageResponse {
   success: boolean;
 }
+
+export type SearchChannelsParams = {
+  q: string;
+};

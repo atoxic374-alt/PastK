@@ -1,18 +1,16 @@
 openapi: 3.1.0
 info:
   title: Api
-  version: 0.1.0
+  version: 0.2.0
   description: Kick Bot API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
   - name: bot
-    description: Bot management
   - name: messages
-    description: Message management
+  - name: channels
 paths:
   /healthz:
     get:
@@ -34,11 +32,11 @@ paths:
       summary: Get bot status
       responses:
         "200":
-          description: Bot status
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BotStatus"
+          description: OK
 
   /bot/start:
     post:
@@ -53,11 +51,11 @@ paths:
               $ref: "#/components/schemas/StartBotBody"
       responses:
         "200":
-          description: Bot started
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BotStatus"
+          description: OK
 
   /bot/stop:
     post:
@@ -66,11 +64,43 @@ paths:
       summary: Stop the bot
       responses:
         "200":
-          description: Bot stopped
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BotStatus"
+          description: OK
+
+  /bot/otp:
+    post:
+      operationId: submitOtp
+      tags: [bot]
+      summary: Submit OTP code for login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OtpBody"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+          description: OK
+
+  /bot/account:
+    get:
+      operationId: getBotAccount
+      tags: [bot]
+      summary: Get logged-in account info
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountInfoResponse"
+          description: OK
 
   /bot/logs:
     get:
@@ -79,11 +109,49 @@ paths:
       summary: Get bot activity logs
       responses:
         "200":
-          description: Bot logs
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/BotLogsResponse"
+          description: OK
+
+  /channels/search:
+    get:
+      operationId: searchChannels
+      tags: [channels]
+      summary: Search Kick channels
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelSearchResponse"
+          description: OK
+
+  /channels/{slug}/status:
+    get:
+      operationId: getChannelStatus
+      tags: [channels]
+      summary: Get channel live status
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelInfo"
+          description: OK
 
   /messages:
     get:
@@ -92,11 +160,11 @@ paths:
       summary: Get all messages
       responses:
         "200":
-          description: Messages list
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MessagesResponse"
+          description: OK
     post:
       operationId: createMessage
       tags: [messages]
@@ -109,11 +177,11 @@ paths:
               $ref: "#/components/schemas/CreateMessageBody"
       responses:
         "201":
-          description: Message created
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Message"
+          description: Created
 
   /messages/{id}:
     delete:
@@ -128,11 +196,11 @@ paths:
             type: integer
       responses:
         "200":
-          description: Message deleted
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeleteMessageResponse"
+          description: OK
 
 components:
   schemas:
@@ -141,14 +209,44 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
+
+    BotState:
+      type: string
+      enum:
+        - idle
+        - launching
+        - logging_in
+        - awaiting_otp
+        - verifying
+        - monitoring
+        - live
+        - stopped
+        - error
+
+    AccountInfo:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        followersCount:
+          type: integer
+        followingCount:
+          type: integer
+        verified:
+          type: boolean
+      required: [username, followersCount, followingCount, verified]
 
     BotStatus:
       type: object
       properties:
-        running:
-          type: boolean
+        state:
+          $ref: "#/components/schemas/BotState"
         channelName:
           type: string
         isLive:
@@ -160,11 +258,26 @@ components:
         startedAt:
           type: string
           nullable: true
+        otpRequired:
+          type: boolean
+        account:
+          $ref: "#/components/schemas/AccountInfo"
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        viewers:
+          type: integer
+          nullable: true
+        streamTitle:
+          type: string
+          nullable: true
       required:
-        - running
+        - state
         - isLive
         - messagesSent
         - intervalSeconds
+        - otpRequired
 
     StartBotBody:
       type: object
@@ -177,11 +290,22 @@ components:
           type: string
         intervalSeconds:
           type: integer
-      required:
-        - channelName
-        - email
-        - password
-        - intervalSeconds
+      required: [channelName, email, password, intervalSeconds]
+
+    OtpBody:
+      type: object
+      properties:
+        code:
+          type: string
+      required: [code]
+
+    AccountInfoResponse:
+      type: object
+      properties:
+        account:
+          $ref: "#/components/schemas/AccountInfo"
+          nullable: true
+      required: [account]
 
     BotLogsResponse:
       type: object
@@ -190,8 +314,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BotLog"
-      required:
-        - logs
+      required: [logs]
 
     BotLog:
       type: object
@@ -202,12 +325,48 @@ components:
           type: string
         message:
           type: string
+          nullable: true
         timestamp:
           type: string
-      required:
-        - id
-        - event
-        - timestamp
+      required: [id, event, timestamp]
+
+    ChannelInfo:
+      type: object
+      properties:
+        slug:
+          type: string
+        username:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        isLive:
+          type: boolean
+        viewers:
+          type: integer
+          nullable: true
+        streamTitle:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        followersCount:
+          type: integer
+          nullable: true
+        thumbnail:
+          type: string
+          nullable: true
+      required: [slug, username, isLive]
+
+    ChannelSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelInfo"
+      required: [results]
 
     MessagesResponse:
       type: object
@@ -216,8 +375,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Message"
-      required:
-        - messages
+      required: [messages]
 
     Message:
       type: object
@@ -228,23 +386,18 @@ components:
           type: string
         createdAt:
           type: string
-      required:
-        - id
-        - text
-        - createdAt
+      required: [id, text, createdAt]
 
     CreateMessageBody:
       type: object
       properties:
         text:
           type: string
-      required:
-        - text
+      required: [text]
 
     DeleteMessageResponse:
       type: object
       properties:
         success:
           type: boolean
-      required:
-        - success
+      required: [success]

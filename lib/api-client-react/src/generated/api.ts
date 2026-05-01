@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * Kick Bot API
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
@@ -17,13 +17,18 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AccountInfoResponse,
   BotLogsResponse,
   BotStatus,
+  ChannelInfo,
+  ChannelSearchResponse,
   CreateMessageBody,
   DeleteMessageResponse,
   HealthStatus,
   Message,
   MessagesResponse,
+  OtpBody,
+  SearchChannelsParams,
   StartBotBody,
 } from "./api.schemas";
 
@@ -352,6 +357,167 @@ export const useStopBot = <
 };
 
 /**
+ * @summary Submit OTP code for login
+ */
+export const getSubmitOtpUrl = () => {
+  return `/api/bot/otp`;
+};
+
+export const submitOtp = async (
+  otpBody: OtpBody,
+  options?: RequestInit,
+): Promise<BotStatus> => {
+  return customFetch<BotStatus>(getSubmitOtpUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(otpBody),
+  });
+};
+
+export const getSubmitOtpMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitOtp>>,
+    TError,
+    { data: BodyType<OtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitOtp>>,
+  TError,
+  { data: BodyType<OtpBody> },
+  TContext
+> => {
+  const mutationKey = ["submitOtp"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitOtp>>,
+    { data: BodyType<OtpBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitOtp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitOtpMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitOtp>>
+>;
+export type SubmitOtpMutationBody = BodyType<OtpBody>;
+export type SubmitOtpMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Submit OTP code for login
+ */
+export const useSubmitOtp = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitOtp>>,
+    TError,
+    { data: BodyType<OtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitOtp>>,
+  TError,
+  { data: BodyType<OtpBody> },
+  TContext
+> => {
+  return useMutation(getSubmitOtpMutationOptions(options));
+};
+
+/**
+ * @summary Get logged-in account info
+ */
+export const getGetBotAccountUrl = () => {
+  return `/api/bot/account`;
+};
+
+export const getBotAccount = async (
+  options?: RequestInit,
+): Promise<AccountInfoResponse> => {
+  return customFetch<AccountInfoResponse>(getGetBotAccountUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBotAccountQueryKey = () => {
+  return [`/api/bot/account`] as const;
+};
+
+export const getGetBotAccountQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBotAccount>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBotAccount>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBotAccountQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBotAccount>>> = ({
+    signal,
+  }) => getBotAccount({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBotAccount>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBotAccountQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBotAccount>>
+>;
+export type GetBotAccountQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get logged-in account info
+ */
+
+export function useGetBotAccount<
+  TData = Awaited<ReturnType<typeof getBotAccount>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBotAccount>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBotAccountQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Get bot activity logs
  */
 export const getGetBotLogsUrl = () => {
@@ -418,6 +584,187 @@ export function useGetBotLogs<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetBotLogsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Search Kick channels
+ */
+export const getSearchChannelsUrl = (params: SearchChannelsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/channels/search?${stringifiedParams}`
+    : `/api/channels/search`;
+};
+
+export const searchChannels = async (
+  params: SearchChannelsParams,
+  options?: RequestInit,
+): Promise<ChannelSearchResponse> => {
+  return customFetch<ChannelSearchResponse>(getSearchChannelsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSearchChannelsQueryKey = (params?: SearchChannelsParams) => {
+  return [`/api/channels/search`, ...(params ? [params] : [])] as const;
+};
+
+export const getSearchChannelsQueryOptions = <
+  TData = Awaited<ReturnType<typeof searchChannels>>,
+  TError = ErrorType<unknown>,
+>(
+  params: SearchChannelsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchChannels>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSearchChannelsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof searchChannels>>> = ({
+    signal,
+  }) => searchChannels(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof searchChannels>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type SearchChannelsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof searchChannels>>
+>;
+export type SearchChannelsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Search Kick channels
+ */
+
+export function useSearchChannels<
+  TData = Awaited<ReturnType<typeof searchChannels>>,
+  TError = ErrorType<unknown>,
+>(
+  params: SearchChannelsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchChannels>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getSearchChannelsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get channel live status
+ */
+export const getGetChannelStatusUrl = (slug: string) => {
+  return `/api/channels/${slug}/status`;
+};
+
+export const getChannelStatus = async (
+  slug: string,
+  options?: RequestInit,
+): Promise<ChannelInfo> => {
+  return customFetch<ChannelInfo>(getGetChannelStatusUrl(slug), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetChannelStatusQueryKey = (slug: string) => {
+  return [`/api/channels/${slug}/status`] as const;
+};
+
+export const getGetChannelStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getChannelStatus>>,
+  TError = ErrorType<unknown>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getChannelStatus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetChannelStatusQueryKey(slug);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getChannelStatus>>
+  > = ({ signal }) => getChannelStatus(slug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!slug,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getChannelStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetChannelStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getChannelStatus>>
+>;
+export type GetChannelStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get channel live status
+ */
+
+export function useGetChannelStatus<
+  TData = Awaited<ReturnType<typeof getChannelStatus>>,
+  TError = ErrorType<unknown>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getChannelStatus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetChannelStatusQueryOptions(slug, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
