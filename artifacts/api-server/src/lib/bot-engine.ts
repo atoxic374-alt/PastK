@@ -379,25 +379,28 @@ class KickBotEngine {
       await this.log("LOGIN", `User API: status=${raw?.status} preview=${JSON.stringify(raw?.data ?? {}).substring(0, 300)}`);
 
       const d = raw?.data;
-      const payload = d?.data ?? d;
-      const user = payload?.username ? payload
-        : payload?.user?.username ? payload.user
-        : d?.user?.username ? d.user
-        : null;
+      const payload = d?.data ?? d?.user ?? d;
+      const username = payload?.username ?? payload?.user_name ?? payload?.name ?? d?.username ?? d?.user_name ?? null;
+      const email = payload?.email ?? d?.email ?? null;
+      const avatar = payload?.profile_pic ?? payload?.profile_image ?? d?.profile_pic ?? d?.profile_image ?? null;
+      const followersCount = payload?.followers_count ?? d?.followers_count ?? 0;
+      const followingCount = payload?.following_count ?? d?.following_count ?? 0;
+      const verified = payload?.is_verified ?? d?.is_verified ?? false;
 
-      if (user?.username) {
+      if (username || email) {
         this.account = {
-          username: user.username,
-          email: user.email ?? undefined,
-          avatar: user.profile_pic ?? user.profile_image ?? null,
-          followersCount: user.followers_count ?? 0,
-          followingCount: user.following_count ?? 0,
-          verified: user.is_verified ?? false,
+          username: username ?? email!.split("@")[0],
+          email: email ?? undefined,
+          avatar,
+          followersCount,
+          followingCount,
+          verified,
         };
         await this.log("ACCOUNT", `Authenticated as @${this.account.username} (Followers: ${this.account.followersCount})`);
         return true;
       }
 
+      await this.log("LOGIN", `verifySession keys: ${Object.keys(d ?? {}).join(",") || "none"}`);
       await this.log("LOGIN", `verifySession: no username found in response — auth failed`);
     } catch (err: any) {
       await this.log("ERROR", `verifySession exception: ${err?.message}`);
