@@ -392,65 +392,110 @@ class KickBotEngine {
     this.state = "logging_in";
     await this.log("LOGIN", `Attempting login for ${email}`);
 
-    // Step 1: Navigate to Kick home
-    await this.page.goto("https://kick.com", { waitUntil: "domcontentloaded", timeout: 30000 });
-    await this.delay(2000, 4000);
+    // Step 1: Navigate to kick.com to establish cookies/session
+    await this.page.goto("https://kick.com", { waitUntil: "domcontentloaded", timeout: 35000 });
+    await this.delay(2500, 4000);
     await this.naturalMouseMove(this.page);
 
-    // Step 2: Find and click login button
-    const loginSelectors = [
-      'button:has-text("Sign in")',
-      'button:has-text("Log in")',
-      '[data-testid="login-button"]',
-      'a[href*="login"]',
-      'button[aria-label*="login" i]',
-    ];
-    let clickedLogin = false;
-    for (const sel of loginSelectors) {
+    // Step 2: Try API-based login (bypass form detection entirely)
+    await this.log("LOGIN", "Trying API-based login...");
+    const apiResult = await this.page.evaluate(`(async () => {
       try {
-        const btn = await this.page.$(sel);
-        if (btn) {
-          await this.naturalMouseMove(this.page, 2);
-          await btn.hover();
-          await this.delay(300, 600);
-          await btn.click();
-          clickedLogin = true;
-          await this.delay(1500, 2800);
-          break;
-        }
-      } catch {}
-    }
-    if (!clickedLogin) {
-      await this.page.goto("https://kick.com/login", { waitUntil: "domcontentloaded", timeout: 30000 });
-      await this.delay(2000, 3500);
+        await fetch("https://kick.com/sanctum/csrf-cookie", { credentials: "include" });
+        await new Promise(r => setTimeout(r, 800));
+        const xsrf = document.cookie
+          .split(";")
+          .map(c => c.trim())
+          .find(c => c.startsWith("XSRF-TOKEN="))
+          ?.split("=").slice(1).join("=");
+        const headers = {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        };
+        if (xsrf) headers["X-XSRF-TOKEN"] = decodeURIComponent(xsrf);
+        const r = await fetch("https://kick.com/api/v1/login", {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ email: ${JSON.stringify(email)}, password: ${JSON.stringify(password)} }),
+        });
+        let data = null;
+        try { data = await r.json(); } catch {}
+        return { status: r.status, data };
+      } catch (e) {
+        return { status: 0, error: String(e) };
+      }
+    })()`) as any;
+
+    await this.log("LOGIN", `API login response: status=${apiResult.status}`);
+
+    if (apiResult.status === 200) {
+      // Success — might need 2FA
+      const d = apiResult.data as any;
+      if (d?.two_factor || d?.message?.toLowerCase().includes("two")) {
+        this.state = "awaiting_otp";
+        this.otpRequired = true;
+        await this.log("OTP", "2FA required after API login");
+        return;
+      }
+      await this.log("LOGIN", "API login successful");
+      await this.finishLogin(email);
+      return;
     }
 
-    // Step 3: Fill email with human typing
+    if (apiResult.status === 422 || apiResult.status === 401) {
+      // Wrong credentials
+      const msg = (apiResult.data as any)?.message ?? "Invalid credentials";
+      throw new Error(`Login failed: ${msg}`);
+    }
+
+    // Step 3: API login didn't work cleanly — fall back to form-based login
+    await this.log("LOGIN", "API login inconclusive — trying form-based login...");
+
+    // Navigate directly to login page
+    await this.page.goto("https://kick.com/login", { waitUntil: "domcontentloaded", timeout: 35000 });
+    await this.delay(2000, 3500);
+
+    // Wait up to 15s for email field to appear
+    const emailField = 'input[type="email"], input[name="email"], input[autocomplete="email"], input[placeholder*="mail" i]';
+    try {
+      await this.page.waitForSelector(emailField, { timeout: 15000 });
+    } catch {
+      // Try clicking a sign-in trigger on home page as last resort
+      await this.page.goto("https://kick.com", { waitUntil: "domcontentloaded", timeout: 30000 });
+      await this.delay(2000, 3000);
+      for (const sel of ['button:has-text("Sign in")', 'button:has-text("Log in")', '[data-testid="login-button"]']) {
+        try {
+          const btn = await this.page.$(sel);
+          if (btn) { await btn.click(); await this.delay(2000, 3000); break; }
+        } catch {}
+      }
+      // One final wait
+      try {
+        await this.page.waitForSelector(emailField, { timeout: 12000 });
+      } catch {
+        // Dump page content for debugging
+        const url = this.page.url();
+        const title = await this.page.title().catch(() => "?");
+        throw new Error(`Login page not found (url=${url}, title=${title})`);
+      }
+    }
+
     await this.naturalMouseMove(this.page, 2);
-    const emailSelectors = [
-      'input[name="email"]',
-      'input[type="email"]',
-      'input[placeholder*="mail" i]',
-      'input[autocomplete="email"]',
-    ];
+
+    // Fill email
     let typedEmail = false;
-    for (const sel of emailSelectors) {
+    for (const sel of ['input[name="email"]', 'input[type="email"]', 'input[placeholder*="mail" i]', 'input[autocomplete="email"]']) {
       if (await this.humanType(this.page, sel, email)) { typedEmail = true; break; }
     }
     if (!typedEmail) throw new Error("Could not locate email field on login page");
 
     await this.delay(700, 1400);
 
-    // Step 4: Tab to password or click it
-    await this.page.keyboard.press("Tab");
-    await this.delay(300, 600);
-    const passSelectors = [
-      'input[name="password"]',
-      'input[type="password"]',
-      'input[autocomplete="current-password"]',
-    ];
+    // Fill password
     let typedPass = false;
-    for (const sel of passSelectors) {
+    for (const sel of ['input[name="password"]', 'input[type="password"]', 'input[autocomplete="current-password"]']) {
       if (await this.humanType(this.page, sel, password)) { typedPass = true; break; }
     }
     if (!typedPass) throw new Error("Could not locate password field on login page");
@@ -458,22 +503,11 @@ class KickBotEngine {
     await this.delay(900, 1800);
     await this.naturalMouseMove(this.page, 2);
 
-    // Step 5: Submit
-    const submitSelectors = [
-      'button[type="submit"]',
-      'button:has-text("Continue")',
-      'button:has-text("Sign in")',
-      'button:has-text("Log in")',
-    ];
-    for (const sel of submitSelectors) {
+    // Submit
+    for (const sel of ['button[type="submit"]', 'button:has-text("Continue")', 'button:has-text("Sign in")', 'button:has-text("Log in")']) {
       try {
         const btn = await this.page.$(sel);
-        if (btn) {
-          await btn.hover();
-          await this.delay(200, 500);
-          await btn.click();
-          break;
-        }
+        if (btn) { await btn.hover(); await this.delay(200, 500); await btn.click(); break; }
       } catch {}
     }
 
@@ -527,9 +561,44 @@ class KickBotEngine {
     if (this.state !== "awaiting_otp" || !this.page) return;
     await this.log("OTP", `Submitting OTP code: ${code}`);
 
-    // Small delay before typing — simulate reading the OTP
     await this.delay(500, 1200);
 
+    // Try API-based 2FA submission first
+    const apiResult = await this.page.evaluate(`(async () => {
+      try {
+        const xsrf = document.cookie
+          .split(";").map(c => c.trim())
+          .find(c => c.startsWith("XSRF-TOKEN="))
+          ?.split("=").slice(1).join("=");
+        const headers = {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        };
+        if (xsrf) headers["X-XSRF-TOKEN"] = decodeURIComponent(xsrf);
+        const r = await fetch("https://kick.com/api/v1/login/2fa", {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ one_time_password: ${JSON.stringify(code)} }),
+        });
+        let data = null;
+        try { data = await r.json(); } catch {}
+        return { status: r.status, data };
+      } catch (e) {
+        return { status: 0, error: String(e) };
+      }
+    })()`) as any;
+
+    await this.log("OTP", `2FA API response: status=${apiResult?.status}`);
+
+    if (apiResult?.status === 200) {
+      this.otpRequired = false;
+      await this.finishLogin(null);
+      return;
+    }
+
+    // Fall back to form-based OTP entry
     const otpSelectors = [
       'input[name="one_time_password"]',
       'input[placeholder*="code" i]',
@@ -545,22 +614,10 @@ class KickBotEngine {
 
     await this.delay(600, 1200);
 
-    const submitSels = [
-      'button[type="submit"]',
-      'button:has-text("Verify")',
-      'button:has-text("Confirm")',
-      'button:has-text("Continue")',
-      'button:has-text("Submit")',
-    ];
-    for (const sel of submitSels) {
+    for (const sel of ['button[type="submit"]', 'button:has-text("Verify")', 'button:has-text("Confirm")', 'button:has-text("Continue")']) {
       try {
         const btn = await this.page.$(sel);
-        if (btn) {
-          await btn.hover();
-          await this.delay(200, 400);
-          await btn.click();
-          break;
-        }
+        if (btn) { await btn.hover(); await this.delay(200, 400); await btn.click(); break; }
       } catch {}
     }
 
