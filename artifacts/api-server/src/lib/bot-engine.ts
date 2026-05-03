@@ -308,6 +308,24 @@ class KickBotEngine {
         await this.delay(300, 800);
         break;
       case 3:
+        await page.mouse.click(this.ri(240, 980), this.ri(120, 620));
+        await this.delay(250, 700);
+        break;
+      case 4:
+        await page.keyboard.press("Space").catch(() => {});
+        await this.delay(250, 700);
+        break;
+      case 5:
+        await page.mouse.down().catch(() => {});
+        await this.delay(120, 220);
+        await page.mouse.up().catch(() => {});
+        await this.delay(300, 900);
+        break;
+      case 6:
+        await page.keyboard.press("ArrowDown").catch(() => {});
+        await this.delay(180, 500);
+        break;
+      case 7:
         // Just linger — no action (afk-like)
         await this.delay(1000, 3000);
         break;

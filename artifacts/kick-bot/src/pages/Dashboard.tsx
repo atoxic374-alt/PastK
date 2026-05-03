@@ -330,6 +330,11 @@ export default function Dashboard() {
     qc.invalidateQueries({ queryKey: getGetMessagesQueryKey() });
   };
 
+  const handleDelMsg = async (id: number) => {
+    await deleteMessage.mutateAsync({ id });
+    qc.invalidateQueries({ queryKey: getGetMessagesQueryKey() });
+  };
+
   const pickChannel = (slug: string) => {
     setChannelName(slug);
     setTab("status");
@@ -463,6 +468,19 @@ export default function Dashboard() {
                 {status.category && <span className="text-purple-400 mr-2"> · {status.category}</span>}
               </p>
             )}
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { label: "قناة المتابعة", value: `@${status?.channelName ?? ""}` },
+                { label: "الحساب", value: account?.username ? `@${account.username}` : "—" },
+                { label: "متابعون", value: status?.channelFollowers != null ? status.channelFollowers.toLocaleString("ar-SA") : "—" },
+                { label: "جلسات", value: (status?.liveSessionCount ?? 0).toString() },
+              ].map((item) => (
+                <div key={item.label} className="bg-black/20 rounded-xl px-3 py-2">
+                  <p className="text-[10px] text-gray-500">{item.label}</p>
+                  <p className="text-xs font-bold text-white mt-0.5 truncate">{item.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -555,6 +573,21 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+                {account && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label: "الاسم", value: `@${account.username}` },
+                      { label: "الإيميل", value: account.email ?? "—" },
+                      { label: "المتابعون", value: account.followersCount.toLocaleString("ar-SA") },
+                      { label: "يتابع", value: account.followingCount.toLocaleString("ar-SA") },
+                    ].map((item) => (
+                      <div key={item.label} className="bg-black/20 rounded-xl px-3 py-2">
+                        <p className="text-[10px] text-gray-500">{item.label}</p>
+                        <p className="text-xs font-bold text-white mt-0.5 truncate">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Action button */}
@@ -619,6 +652,18 @@ export default function Dashboard() {
                   <img src={trackedChannel.thumbnail} alt="stream thumbnail"
                     className="w-full rounded-xl object-cover" style={{ maxHeight: 140 }} />
                 )}
+                <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-500">
+                  <div className="bg-black/20 rounded-xl px-3 py-2">
+                    <p>القناة</p>
+                    <p className="text-white font-bold truncate">@{trackedChannel.username}</p>
+                  </div>
+                  <div className="bg-black/20 rounded-xl px-3 py-2">
+                    <p>الحالة</p>
+                    <p className={`font-bold ${trackedChannel.isLive ? "text-red-400" : "text-gray-400"}`}>
+                      {trackedChannel.isLive ? "مباشر" : "أوفلاين"}
+                    </p>
+                  </div>
+                </div>
                 {/* View recent streams button */}
                 <button
                   onClick={() => { setSelectedSlugForStreams(trackedChannel.slug); setTab("search"); }}
@@ -636,7 +681,7 @@ export default function Dashboard() {
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {["WebDriver Masking", "Plugins Spoof", "Human Typing", "Mouse Simulation", "±45s Jitter",
-                  "Cookie Session", "OTP Handler", "Idle Behavior", "Quiet API Check", "Sequential Nav"].map((f) => (
+                  "Cookie Session", "OTP Handler", "Idle Behavior", "Quiet API Check", "Sequential Nav", "Account Card", "Recent Streams"].map((f) => (
                   <span key={f} className="text-[10px] bg-[#53fc18]/8 text-[#53fc18]/70 border border-[#53fc18]/15 px-2 py-0.5 rounded-full">
                     {f}
                   </span>
