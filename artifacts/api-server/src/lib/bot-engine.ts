@@ -392,20 +392,24 @@ class KickBotEngine {
     this.state = "logging_in";
     await this.log("LOGIN", `Attempting login for ${email}`);
 
-    // Step 1: Navigate to kick.com to establish cookies/session
-    await this.page.goto("https://kick.com", { waitUntil: "domcontentloaded", timeout: 35000 });
-    await this.delay(2500, 4000);
-    await this.naturalMouseMove(this.page);
+    // Step 1: Load kick.com — wait for Cloudflare JS challenge to fully complete
+    await this.log("LOGIN", "Loading Kick.com — waiting for Cloudflare...");
+    await this.page.goto("https://kick.com", { waitUntil: "load", timeout: 45000 });
+    await this.delay(7000, 10000); // Cloudflare challenge needs time to pass
 
-    // Step 2: Try API-based login (bypass form detection entirely)
-    await this.log("LOGIN", "Trying API-based login...");
+    const pageTitle = await this.page.title().catch(() => "");
+    await this.log("LOGIN", `Page ready: title="${pageTitle}" url=${this.page.url()}`);
+    await this.naturalMouseMove(this.page, 3);
+
+    // Step 2: Fetch CSRF cookie then attempt API login
+    await this.log("LOGIN", "Attempting API login...");
     const apiResult = await this.page.evaluate(`(async () => {
       try {
+        // Grab CSRF cookie
         await fetch("https://kick.com/sanctum/csrf-cookie", { credentials: "include" });
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(r => setTimeout(r, 1200));
         const xsrf = document.cookie
-          .split(";")
-          .map(c => c.trim())
+          .split(";").map(c => c.trim())
           .find(c => c.startsWith("XSRF-TOKEN="))
           ?.split("=").slice(1).join("=");
         const headers = {
@@ -422,88 +426,95 @@ class KickBotEngine {
         });
         let data = null;
         try { data = await r.json(); } catch {}
-        return { status: r.status, data };
+        return { status: r.status, data, hasXsrf: !!xsrf };
       } catch (e) {
-        return { status: 0, error: String(e) };
+        return { status: 0, error: String(e), hasXsrf: false };
       }
     })()`) as any;
 
-    await this.log("LOGIN", `API login response: status=${apiResult.status}`);
+    await this.log("LOGIN", `API result: status=${apiResult?.status} hasXsrf=${apiResult?.hasXsrf} err=${apiResult?.error ?? "-"}`);
+    await this.log("LOGIN", `API data: ${JSON.stringify(apiResult?.data ?? {}).substring(0, 300)}`);
 
-    if (apiResult.status === 200) {
-      // Success — might need 2FA
+    if (apiResult?.status === 200) {
       const d = apiResult.data as any;
-      if (d?.two_factor || d?.message?.toLowerCase().includes("two")) {
+      if (d?.two_factor || d?.message?.toLowerCase?.()?.includes("two")) {
         this.state = "awaiting_otp";
         this.otpRequired = true;
-        await this.log("OTP", "2FA required after API login");
+        await this.log("OTP", "2FA required — waiting for code");
         return;
       }
-      await this.log("LOGIN", "API login successful");
+      await this.log("LOGIN", "API login successful!");
       await this.finishLogin(email);
       return;
     }
 
-    if (apiResult.status === 422 || apiResult.status === 401) {
-      // Wrong credentials
-      const msg = (apiResult.data as any)?.message ?? "Invalid credentials";
+    if (apiResult?.status === 422 || apiResult?.status === 401) {
+      const msg = (apiResult?.data as any)?.message ?? "Invalid credentials";
       throw new Error(`Login failed: ${msg}`);
     }
 
-    // Step 3: API login didn't work cleanly — fall back to form-based login
-    await this.log("LOGIN", "API login inconclusive — trying form-based login...");
+    // Step 3: API blocked — try modal-based login (Kick has no standalone /login page)
+    await this.log("LOGIN", `API inconclusive (status=${apiResult?.status}) — opening login modal...`);
 
-    // Navigate directly to login page
-    await this.page.goto("https://kick.com/login", { waitUntil: "domcontentloaded", timeout: 35000 });
-    await this.delay(2000, 3500);
-
-    // Wait up to 15s for email field to appear
-    const emailField = 'input[type="email"], input[name="email"], input[autocomplete="email"], input[placeholder*="mail" i]';
-    try {
-      await this.page.waitForSelector(emailField, { timeout: 15000 });
-    } catch {
-      // Try clicking a sign-in trigger on home page as last resort
-      await this.page.goto("https://kick.com", { waitUntil: "domcontentloaded", timeout: 30000 });
-      await this.delay(2000, 3000);
-      for (const sel of ['button:has-text("Sign in")', 'button:has-text("Log in")', '[data-testid="login-button"]']) {
-        try {
-          const btn = await this.page.$(sel);
-          if (btn) { await btn.click(); await this.delay(2000, 3000); break; }
-        } catch {}
-      }
-      // One final wait
+    const signInSelectors = [
+      'button:has-text("Sign In")',
+      'button:has-text("Sign in")',
+      'button:has-text("Log In")',
+      'button:has-text("Log in")',
+      'button:has-text("Login")',
+      '[data-testid="login-button"]',
+      'a:has-text("Sign in")',
+      'a[href*="login"]',
+    ];
+    let modalOpened = false;
+    for (const sel of signInSelectors) {
       try {
-        await this.page.waitForSelector(emailField, { timeout: 12000 });
-      } catch {
-        // Dump page content for debugging
-        const url = this.page.url();
-        const title = await this.page.title().catch(() => "?");
-        throw new Error(`Login page not found (url=${url}, title=${title})`);
-      }
+        const btn = await this.page.$(sel);
+        if (btn) {
+          await btn.scrollIntoViewIfNeeded();
+          await this.delay(400, 800);
+          await btn.click();
+          await this.delay(2000, 3500);
+          modalOpened = true;
+          await this.log("LOGIN", `Opened login modal via: ${sel}`);
+          break;
+        }
+      } catch {}
+    }
+
+    if (!modalOpened) {
+      const bodySnippet = await this.page.evaluate(`(document.body?.innerText ?? "").substring(0,500)`) as string;
+      await this.log("LOGIN", `Cannot find sign-in button. Page text: ${bodySnippet}`);
+      throw new Error(`Cannot open login modal — API status ${apiResult?.status}. Kick may be blocking the headless browser.`);
+    }
+
+    // Wait for email field inside modal
+    const emailCss = 'input[type="email"], input[name="email"], input[autocomplete="email"], input[placeholder*="mail" i], input[placeholder*="Email" i]';
+    try {
+      await this.page.waitForSelector(emailCss, { timeout: 12000 });
+    } catch {
+      throw new Error("Login modal opened but email field was not found");
     }
 
     await this.naturalMouseMove(this.page, 2);
 
-    // Fill email
     let typedEmail = false;
-    for (const sel of ['input[name="email"]', 'input[type="email"]', 'input[placeholder*="mail" i]', 'input[autocomplete="email"]']) {
+    for (const sel of ['input[name="email"]', 'input[type="email"]', 'input[placeholder*="mail" i]', 'input[placeholder*="Email" i]', 'input[autocomplete="email"]']) {
       if (await this.humanType(this.page, sel, email)) { typedEmail = true; break; }
     }
-    if (!typedEmail) throw new Error("Could not locate email field on login page");
+    if (!typedEmail) throw new Error("Could not type in email field");
 
     await this.delay(700, 1400);
 
-    // Fill password
     let typedPass = false;
     for (const sel of ['input[name="password"]', 'input[type="password"]', 'input[autocomplete="current-password"]']) {
       if (await this.humanType(this.page, sel, password)) { typedPass = true; break; }
     }
-    if (!typedPass) throw new Error("Could not locate password field on login page");
+    if (!typedPass) throw new Error("Could not type in password field");
 
     await this.delay(900, 1800);
     await this.naturalMouseMove(this.page, 2);
 
-    // Submit
     for (const sel of ['button[type="submit"]', 'button:has-text("Continue")', 'button:has-text("Sign in")', 'button:has-text("Log in")']) {
       try {
         const btn = await this.page.$(sel);
