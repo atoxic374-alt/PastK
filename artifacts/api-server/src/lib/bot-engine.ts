@@ -334,7 +334,7 @@ class KickBotEngine {
   private async saveCookies(email: string) {
     if (!this.context) return;
     const cookies = await this.context.cookies();
-    fs.writeFileSync(this.cookiesPath(email), JSON.stringify(cookies, null, 2));
+    fs.writeFileSync(this.cookiesPath(email), JSON.stringify({ cookies, authToken: this.authToken }, null, 2));
     await this.log("SESSION", "Cookies saved to disk");
   }
 
@@ -342,8 +342,13 @@ class KickBotEngine {
     const p = this.cookiesPath(email);
     if (!fs.existsSync(p)) return false;
     try {
-      const cookies = JSON.parse(fs.readFileSync(p, "utf-8"));
+      const saved = JSON.parse(fs.readFileSync(p, "utf-8")) as { cookies?: any[]; authToken?: string | null } | any[];
+      const cookies = Array.isArray(saved) ? saved : saved.cookies;
+      if (!Array.isArray(cookies)) return false;
       await this.context!.addCookies(cookies);
+      if (!Array.isArray(saved) && typeof saved.authToken === "string" && saved.authToken) {
+        this.authToken = saved.authToken.startsWith("Bearer ") ? saved.authToken.slice(7) : saved.authToken;
+      }
       await this.log("SESSION", "Cookies loaded from disk — attempting session restore");
       return true;
     } catch {
