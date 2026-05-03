@@ -54,6 +54,10 @@ export interface BotStatusData {
   streamTitle?: string | null;
   category?: string | null;
   channelFollowers?: number | null;
+  channelEmotes?: Array<{
+    name: string;
+    imageUrl: string;
+  }>;
 }
 
 export interface BotConfig {
@@ -83,6 +87,7 @@ class KickBotEngine {
   private streamTitle: string | null = null;
   private category: string | null = null;
   private channelFollowers: number | null = null;
+  private channelEmotes: Array<{ name: string; imageUrl: string }> = [];
   private liveEnteredAt: string | null = null;
   private liveSessionCount = 0;
   private streamStartedAt: string | null = null;
@@ -114,6 +119,7 @@ class KickBotEngine {
       streamTitle: this.streamTitle,
       category: this.category,
       channelFollowers: this.channelFollowers,
+      channelEmotes: this.channelEmotes,
     };
   }
 

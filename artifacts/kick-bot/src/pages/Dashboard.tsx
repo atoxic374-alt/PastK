@@ -303,6 +303,8 @@ export default function Dashboard() {
   const account = accountData?.account ?? null;
   const logs = logsData?.logs ?? [];
   const messages = messagesData?.messages ?? [];
+  const channelEmotes = (status as any)?.channelEmotes ?? [];
+  const pickerEmotes = channelEmotes.length ? channelEmotes : emojiList.map((emoji) => ({ name: emoji, imageUrl: "" }));
   const isRunning = ["launching", "logging_in", "awaiting_otp", "verifying", "monitoring", "live"].includes(state);
   const awaitingOtp = state === "awaiting_otp";
 
@@ -889,17 +891,18 @@ export default function Dashboard() {
                   <IconSmile size={16} />
                 </button>
                 {emojiOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-52 bg-[#0a0b0f] border border-white/10 rounded-2xl p-3 shadow-2xl z-20">
-                    <p className="text-[11px] text-gray-500 mb-2">اختر إيموجي</p>
+                  <div className="absolute left-0 top-full mt-2 w-72 bg-[#0a0b0f] border border-white/10 rounded-2xl p-3 shadow-2xl z-20">
+                    <p className="text-[11px] text-gray-500 mb-2">إيموجيات عامة / خاصة بالقناة</p>
                     <div className="grid grid-cols-6 gap-2">
-                      {emojiList.map((emoji) => (
+                      {pickerEmotes.map((item) => (
                         <button
-                          key={emoji}
+                          key={item.name}
                           type="button"
-                          onClick={() => setNewMsg((v) => `${v}${emoji}`)}
-                          className="h-8 w-8 rounded-lg bg-white/5 hover:bg-white/10 text-base"
+                          onClick={() => setNewMsg((v) => `${v}${item.name}`)}
+                          className="h-8 w-8 rounded-lg bg-white/5 hover:bg-white/10 text-base flex items-center justify-center overflow-hidden"
+                          title={item.name}
                         >
-                          {emoji}
+                          {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-6 h-6 object-contain" /> : item.name}
                         </button>
                       ))}
                     </div>
