@@ -412,7 +412,7 @@ class KickBotEngine {
       const followingCount = payload.following_count ?? payload.following ?? 0;
       const verified = payload.is_verified ?? payload.verified ?? false;
 
-      if (username || email || raw?.status === 200) {
+      if (username || email) {
         this.account = {
           username: username ?? email?.split("@")[0] ?? "authenticated",
           email: email ?? undefined,

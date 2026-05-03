@@ -465,6 +465,9 @@ export default function Dashboard() {
                 )}
               </div>
               {account.email && <p className="text-[11px] text-gray-500 truncate mt-0.5">{account.email}</p>}
+              <p className="text-[10px] mt-1 text-gray-600">
+                {state === "monitoring" || state === "live" ? "الحساب متصل ومُتحقق منه" : "مراقبة فقط — لم يتم تأكيد الحساب بعد"}
+              </p>
             </div>
             <div className="flex gap-5 text-center shrink-0">
               <div>
