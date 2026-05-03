@@ -412,9 +412,9 @@ class KickBotEngine {
       const followingCount = payload.following_count ?? payload.following ?? 0;
       const verified = payload.is_verified ?? payload.verified ?? false;
 
-      if (username || email) {
+      if (username && raw?.status === 200) {
         this.account = {
-          username: username ?? email?.split("@")[0] ?? "authenticated",
+          username,
           email: email ?? undefined,
           avatar,
           followersCount,
@@ -708,11 +708,12 @@ class KickBotEngine {
     await this.naturalMouseMove(this.page);
 
     const ok = await this.verifySession();
-    if (ok) {
+    if (ok && this.account?.username) {
       if (email) await this.saveCookies(email);
       this.state = "monitoring";
       await this.log("LOGIN", `Login successful — @${this.account?.username} — starting channel monitor`);
       this.startMonitorLoop();
+      return;
     } else {
       this.state = "error";
       this.error = "Login verification failed — check credentials and try again";
@@ -1019,7 +1020,7 @@ class KickBotEngine {
     this.messagesSent = 0;
     this.isLive = false;
     this.otpRequired = false;
-    this.account = null;
+      this.account = null;
     this.error = null;
     this.authToken = null;
     this.viewers = null;
@@ -1044,7 +1045,7 @@ class KickBotEngine {
         await this.delay(2500, 5000);
         await this.naturalMouseMove(this.page);
         const valid = await this.verifySession();
-        if (valid) {
+        if (valid && this.account?.username) {
           await this.log("SESSION", `Session restored for @${(this.account as AccountInfo | null)?.username} — no login needed`);
           await this.saveCookies(config.email); // refresh cookies
           this.state = "monitoring";
