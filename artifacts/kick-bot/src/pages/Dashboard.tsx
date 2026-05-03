@@ -153,6 +153,17 @@ function IconRefresh({ size = 14 }: { size?: number }) {
   );
 }
 
+function IconSmile({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="#9ca3af" strokeWidth="2" />
+      <circle cx="9" cy="10" r="1" fill="#9ca3af" />
+      <circle cx="15" cy="10" r="1" fill="#9ca3af" />
+      <path d="M8 14C9.2 15.5 10.6 16 12 16C13.4 16 14.8 15.5 16 14" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // ─── Helpers ─────────────────────────────────────────────────
 
 const STATE_LABELS: Record<string, string> = {
@@ -240,12 +251,14 @@ export default function Dashboard() {
 
   // Messages
   const [newMsg, setNewMsg] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
 
   // Search
   const [searchQ, setSearchQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [selectedSlugForStreams, setSelectedSlugForStreams] = useState<string | null>(null);
+  const emojiList = ["😀", "😎", "🔥", "😂", "❤️", "🙏", "✅", "🎯", "✨", "💬", "👀", "🚀"];
 
   useEffect(() => {
     clearTimeout(searchTimer.current);
@@ -326,14 +339,19 @@ export default function Dashboard() {
 
   const handleAddMsg = async () => {
     if (!newMsg.trim()) return;
-    await createMessage.mutateAsync({ data: { text: newMsg.trim() } });
-    setNewMsg("");
-    qc.invalidateQueries({ queryKey: getGetMessagesQueryKey() });
+    try {
+      await createMessage.mutateAsync({ data: { text: newMsg.trim() } });
+      setNewMsg("");
+      setEmojiOpen(false);
+      qc.invalidateQueries({ queryKey: getGetMessagesQueryKey() });
+    } catch {}
   };
 
   const handleDelMsg = async (id: number) => {
-    await deleteMessage.mutateAsync({ id });
-    qc.invalidateQueries({ queryKey: getGetMessagesQueryKey() });
+    try {
+      await deleteMessage.mutateAsync({ id });
+      qc.invalidateQueries({ queryKey: getGetMessagesQueryKey() });
+    } catch {}
   };
 
   const pickChannel = (slug: string) => {
@@ -849,7 +867,7 @@ export default function Dashboard() {
         ════════════════════════════════════════════════════════ */}
         {tab === "messages" && (
           <div className="bg-[#13161f] border border-white/5 rounded-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <IconChat size={16} />
                 <p className="text-sm font-semibold text-white">الرسائل التلقائية</p>
@@ -857,11 +875,37 @@ export default function Dashboard() {
               <span className="text-xs text-gray-500 bg-[#0a0b0f] px-2.5 py-1 rounded-full">{messages.length} رسالة</span>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-start">
               <input value={newMsg} onChange={(e) => setNewMsg(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAddMsg()}
                 placeholder="أضف رسالة سيرسلها البوت..."
                 className="flex-1 bg-[#0a0b0f] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-700 focus:outline-none focus:border-[#53fc18]/40 transition-colors" />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setEmojiOpen((v) => !v)}
+                  className="bg-[#0a0b0f] border border-white/10 hover:border-[#53fc18]/30 text-white px-3 py-2.5 rounded-xl transition-colors"
+                >
+                  <IconSmile size={16} />
+                </button>
+                {emojiOpen && (
+                  <div className="absolute left-0 top-full mt-2 w-52 bg-[#0a0b0f] border border-white/10 rounded-2xl p-3 shadow-2xl z-20">
+                    <p className="text-[11px] text-gray-500 mb-2">اختر إيموجي</p>
+                    <div className="grid grid-cols-6 gap-2">
+                      {emojiList.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => setNewMsg((v) => `${v}${emoji}`)}
+                          className="h-8 w-8 rounded-lg bg-white/5 hover:bg-white/10 text-base"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <button onClick={handleAddMsg} disabled={!newMsg.trim() || createMessage.isPending}
                 className="bg-[#53fc18] hover:bg-[#45d414] text-black font-bold px-5 py-2.5 rounded-xl text-sm transition-all disabled:opacity-30 shrink-0">
                 إضافة
