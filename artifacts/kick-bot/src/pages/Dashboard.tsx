@@ -953,8 +953,4 @@ export default function Dashboard() {
     </div>
   );
 
-  async function handleDelMsg(id: number) {
-    await deleteMessage.mutateAsync({ id });
-    qc.invalidateQueries({ queryKey: getGetMessagesQueryKey() });
-  }
 }
