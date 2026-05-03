@@ -1,9 +1,15 @@
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { chromium } from "playwright-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import type { Browser, BrowserContext, Page } from "playwright";
 import { db } from "@workspace/db";
 import { botLogsTable, messagesTable } from "@workspace/db";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+
+// Apply stealth plugin — patches 17+ fingerprinting vectors including
+// webdriver, navigator.plugins, chrome runtime, permissions, languages, etc.
+chromium.use(StealthPlugin());
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
@@ -165,81 +171,74 @@ class KickBotEngine {
   // ─── Browser setup ───────────────────────────────────────────
 
   private async launchBrowser(): Promise<Browser> {
+    const w = this.ri(1280, 1440);
+    const h = this.ri(800, 920);
     return chromium.launch({
       headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
-        "--disable-blink-features=AutomationControlled",
         "--disable-dev-shm-usage",
-        "--disable-web-security",
-        `--window-size=${this.ri(1280, 1440)},${this.ri(800, 920)}`,
-        "--lang=ar-SA,ar,en-US",
+        // Critical stealth flags
+        "--disable-blink-features=AutomationControlled",
+        "--disable-features=IsolateOrigins,site-per-process",
+        "--flag-switches-begin",
+        "--disable-site-isolation-trials",
+        "--flag-switches-end",
+        // Mimic real browser
+        `--window-size=${w},${h}`,
+        "--start-maximized",
+        "--lang=en-US,en",
+        "--accept-lang=en-US,en;q=0.9",
+        // GPU / rendering (helps avoid headless detection)
+        "--disable-gpu",
+        "--disable-software-rasterizer",
+        // Background process management
         "--disable-background-timer-throttling",
         "--disable-renderer-backgrounding",
         "--disable-backgrounding-occluded-windows",
+        "--disable-ipc-flooding-protection",
+        // Media
+        "--autoplay-policy=user-gesture-required",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--password-store=basic",
+        "--use-mock-keychain",
       ],
     });
   }
 
   private async buildContext(browser: Browser): Promise<BrowserContext> {
+    // Use realistic Windows Chrome UA (matches our Chrome version)
     const agents = [
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.107 Safari/537.36",
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     ];
+    const ua = agents[this.ri(0, agents.length - 1)];
     const w = this.ri(1280, 1440);
     const h = this.ri(800, 920);
 
     const ctx = await browser.newContext({
-      userAgent: agents[this.ri(0, agents.length - 1)],
+      userAgent: ua,
       viewport: { width: w, height: h },
       screen: { width: w, height: h },
-      locale: "ar-SA",
-      timezoneId: "Asia/Riyadh",
+      // Use English locale — Arabic locale can trigger bot-detection paths
+      locale: "en-US",
+      timezoneId: "America/New_York",
       javaScriptEnabled: true,
       bypassCSP: false,
       extraHTTPHeaders: {
-        "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
-        "sec-ch-ua": `"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"`,
+        "Accept-Language": "en-US,en;q=0.9",
+        "sec-ch-ua": `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`,
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"Windows"',
       },
     });
 
-    // Stealth: mask automation fingerprints
-    await ctx.addInitScript(`
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      Object.defineProperty(navigator, 'plugins', {
-        get: () => Object.assign([
-          { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
-          { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
-          { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' }
-        ], { length: 3 })
-      });
-      Object.defineProperty(navigator, 'languages', { get: () => ['ar-SA', 'ar', 'en-US', 'en'] });
-      Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
-      Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
-      Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
-      window.chrome = {
-        runtime: { onConnect: { addListener: () => {} }, onMessage: { addListener: () => {} } },
-        loadTimes: () => ({ firstPaintTime: 0, requestTime: Date.now() / 1000 }),
-        csi: () => ({ onloadT: Date.now(), pageT: Date.now(), startE: Date.now(), tran: 15 }),
-        app: { isInstalled: false }
-      };
-      if (navigator.permissions) {
-        const _origQuery = navigator.permissions.query.bind(navigator.permissions);
-        navigator.permissions.query = (p) =>
-          p.name === 'notifications'
-            ? Promise.resolve({ state: Notification.permission })
-            : _origQuery(p);
-      }
-      // Hide automation-related properties
-      delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
-      delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
-      delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
-    `);
+    // playwright-extra stealth plugin already patches webdriver, plugins,
+    // chrome runtime, permissions, etc. — no need for manual addInitScript.
 
     return ctx;
   }
