@@ -86,6 +86,7 @@ class KickBotEngine {
   private liveEnteredAt: string | null = null;
   private liveSessionCount = 0;
   private streamStartedAt: string | null = null;
+  private authToken: string | null = null;
 
   // Timers
   private monitorTimer: ReturnType<typeof setTimeout> | null = null;
@@ -355,32 +356,47 @@ class KickBotEngine {
   private async verifySession(): Promise<boolean> {
     if (!this.page) return false;
     try {
-      const resp = await this.page.evaluate(async () => {
+      const token = this.authToken;
+      const raw = await this.page.evaluate(`(async () => {
         try {
-          const r = await fetch("https://kick.com/api/v1/user", {
-            headers: { Accept: "application/json" },
-            credentials: "include",
-          });
-          if (!r.ok) return null;
-          return await r.json();
-        } catch {
-          return null;
+          const token = ${JSON.stringify(token)};
+          const headers = { "Accept": "application/json" };
+          if (token) headers["Authorization"] = token.startsWith("Bearer ") ? token : "Bearer " + token;
+          const r = await fetch("https://kick.com/api/v1/user", { headers, credentials: "include" });
+          let data = null;
+          try { data = await r.json(); } catch {}
+          return { status: r.status, data };
+        } catch (e) {
+          return { status: 0, data: null, error: String(e) };
         }
-      });
-      const r = resp as any;
-      if (r && r.username) {
+      })()`) as any;
+
+      await this.log("LOGIN", `User API: status=${raw?.status} preview=${JSON.stringify(raw?.data ?? {}).substring(0, 300)}`);
+
+      const d = raw?.data;
+      // Handle multiple response shapes: flat, nested under .data, nested under .user
+      const user = d?.username ? d
+        : d?.data?.username ? d.data
+        : d?.user?.username ? d.user
+        : null;
+
+      if (user?.username) {
         this.account = {
-          username: r.username,
-          email: r.email ?? undefined,
-          avatar: r.profile_pic ?? r.profile_image ?? null,
-          followersCount: r.followers_count ?? 0,
-          followingCount: r.following_count ?? 0,
-          verified: r.is_verified ?? false,
+          username: user.username,
+          email: user.email ?? undefined,
+          avatar: user.profile_pic ?? user.profile_image ?? null,
+          followersCount: user.followers_count ?? 0,
+          followingCount: user.following_count ?? 0,
+          verified: user.is_verified ?? false,
         };
         await this.log("ACCOUNT", `Authenticated as @${this.account.username} (Followers: ${this.account.followersCount})`);
         return true;
       }
-    } catch {}
+
+      await this.log("LOGIN", `verifySession: no username found in response — auth failed`);
+    } catch (err: any) {
+      await this.log("ERROR", `verifySession exception: ${err?.message}`);
+    }
     return false;
   }
 
@@ -441,6 +457,12 @@ class KickBotEngine {
         this.otpRequired = true;
         await this.log("OTP", "2FA required — waiting for code");
         return;
+      }
+      // Extract bearer token — Kick returns it as d.token or d.access_token
+      const token = d?.token ?? d?.data?.token ?? d?.access_token ?? null;
+      if (token) {
+        this.authToken = typeof token === "string" && token.startsWith("Bearer ") ? token.slice(7) : token;
+        await this.log("LOGIN", `Stored auth token (${String(this.authToken).substring(0, 12)}...)`);
       }
       await this.log("LOGIN", "API login successful!");
       await this.finishLogin(email);
@@ -603,6 +625,12 @@ class KickBotEngine {
     await this.log("OTP", `2FA API response: status=${apiResult?.status}`);
 
     if (apiResult?.status === 200) {
+      const d2 = apiResult.data as any;
+      const token2 = d2?.token ?? d2?.data?.token ?? d2?.access_token ?? null;
+      if (token2) {
+        this.authToken = typeof token2 === "string" && token2.startsWith("Bearer ") ? token2.slice(7) : token2;
+        await this.log("OTP", `Stored auth token from 2FA (${String(this.authToken).substring(0, 12)}...)`);
+      }
       this.otpRequired = false;
       await this.finishLogin(null);
       return;
@@ -959,6 +987,7 @@ class KickBotEngine {
     this.otpRequired = false;
     this.account = null;
     this.error = null;
+    this.authToken = null;
     this.viewers = null;
     this.streamTitle = null;
     this.category = null;
