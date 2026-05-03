@@ -379,9 +379,9 @@ class KickBotEngine {
       await this.log("LOGIN", `User API: status=${raw?.status} preview=${JSON.stringify(raw?.data ?? {}).substring(0, 300)}`);
 
       const d = raw?.data;
-      // Handle multiple response shapes: flat, nested under .data, nested under .user
-      const user = d?.username ? d
-        : d?.data?.username ? d.data
+      const payload = d?.data ?? d;
+      const user = payload?.username ? payload
+        : payload?.user?.username ? payload.user
         : d?.user?.username ? d.user
         : null;
 
