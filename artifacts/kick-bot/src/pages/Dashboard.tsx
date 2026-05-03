@@ -225,6 +225,7 @@ export default function Dashboard() {
   const deleteMessage = useDeleteMessage();
 
   const [tab, setTab] = useState<Tab>("status");
+  const [immersiveMode, setImmersiveMode] = useState(true);
 
   // Form
   const [channelName, setChannelName] = useState("");
@@ -412,7 +413,23 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-5 space-y-4">
+      <main className={`${immersiveMode ? "max-w-7xl" : "max-w-4xl"} mx-auto px-4 py-5 space-y-4`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[11px] text-gray-500">
+            <IconDot state={state} />
+            <span>{STATE_LABELS[state] ?? state}</span>
+            {state === "live" && (
+              <span className="text-[#53fc18] font-semibold">داخل البث الآن</span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setImmersiveMode((v) => !v)}
+            className="text-[11px] px-3 py-1.5 rounded-full border border-white/10 bg-[#13161f] text-white hover:border-[#53fc18]/30 hover:text-[#53fc18] transition-colors"
+          >
+            {immersiveMode ? "خروج من وضع الشاشة" : "وضع الشاشة"}
+          </button>
+        </div>
 
         {/* ══ Account card ═════════════════════════════════════════ */}
         {account && (
@@ -444,12 +461,12 @@ export default function Dashboard() {
 
         {/* ══ Live session banner ═══════════════════════════════════ */}
         {state === "live" && (
-          <div className="bg-gradient-to-l from-[#53fc18]/5 to-[#53fc18]/0 border border-[#53fc18]/25 rounded-2xl p-4">
+          <div className="bg-gradient-to-l from-[#53fc18]/10 via-[#53fc18]/5 to-[#53fc18]/0 border border-[#53fc18]/35 rounded-3xl p-5 shadow-2xl shadow-[#53fc18]/5">
             <div className="flex items-center gap-3 mb-3">
               <IconLive size={18} />
-              <p className="font-bold text-[#53fc18] text-sm">داخل اللايف — جلسة #{status?.liveSessionCount ?? 1}</p>
+              <p className="font-bold text-[#53fc18] text-sm">داخل البث — جلسة #{status?.liveSessionCount ?? 1}</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { icon: <IconClock size={14} color="#53fc18" />, label: "وقتي في اللايف", value: <LiveClock from={status?.liveEnteredAt} /> },
                 { icon: <IconClock size={14} color="#60a5fa" />, label: "بدأ اللايف منذ", value: <LiveClock from={status?.streamStartedAt} /> },
@@ -468,7 +485,7 @@ export default function Dashboard() {
                 {status.category && <span className="text-purple-400 mr-2"> · {status.category}</span>}
               </p>
             )}
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
               {[
                 { label: "قناة المتابعة", value: `@${status?.channelName ?? ""}` },
                 { label: "الحساب", value: account?.username ? `@${account.username}` : "—" },
@@ -502,7 +519,7 @@ export default function Dashboard() {
         )}
 
         {/* ══ Tabs ═════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-4 gap-1 bg-[#13161f] border border-white/5 rounded-xl p-1">
+          <div className="grid grid-cols-4 gap-1 bg-[#13161f] border border-white/5 rounded-xl p-1">
           {(["status", "search", "messages", "logs"] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`py-2 text-xs font-semibold rounded-lg transition-all ${
@@ -616,7 +633,7 @@ export default function Dashboard() {
 
             {/* Live monitor card */}
             {(state === "monitoring" || state === "live") && trackedChannel && (
-              <div className={`bg-[#13161f] border rounded-2xl p-4 space-y-3 ${trackedChannel.isLive ? "border-[#53fc18]/25" : "border-white/5"}`}>
+              <div className={`bg-[#13161f] border rounded-2xl p-4 space-y-3 ${trackedChannel.isLive ? "border-[#53fc18]/35 shadow-lg shadow-[#53fc18]/5" : "border-white/5"}`}>
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-white">القناة المراقبة</p>
                   <div className="flex items-center gap-2">
