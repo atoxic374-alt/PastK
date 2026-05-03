@@ -690,16 +690,14 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Stealth badges */}
-            <div className="bg-[#13161f] border border-white/5 rounded-xl px-4 py-3">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="bg-[#13161f] border border-white/5 rounded-3xl p-5">
+              <div className="flex items-center gap-2 mb-3">
                 <IconShield size={14} />
-                <p className="text-[11px] text-gray-400 font-semibold">طبقات الحماية المفعّلة</p>
+                <p className="text-[11px] text-gray-400 font-semibold">أقسام النظام</p>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {["WebDriver Masking", "Plugins Spoof", "Human Typing", "Mouse Simulation", "±45s Jitter",
-                  "Cookie Session", "OTP Handler", "Idle Behavior", "Quiet API Check", "Sequential Nav", "Account Card", "Recent Streams"].map((f) => (
-                  <span key={f} className="text-[10px] bg-[#53fc18]/8 text-[#53fc18]/70 border border-[#53fc18]/15 px-2 py-0.5 rounded-full">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {["الحساب", "البث", "الرسائل", "السجل", "البحث", "الحفظ", "التحكم", "التشغيل"].map((f) => (
+                  <span key={f} className="text-[10px] bg-[#53fc18]/8 text-[#53fc18]/75 border border-[#53fc18]/15 px-2 py-1 rounded-full text-center">
                     {f}
                   </span>
                 ))}
