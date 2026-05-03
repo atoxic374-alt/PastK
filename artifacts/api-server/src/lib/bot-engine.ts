@@ -929,7 +929,7 @@ class KickBotEngine {
   private async sendChatMessage(): Promise<void> {
     if (!this.page) return;
 
-    const msgs = await db.select().from(messagesTable);
+    const msgs = await db.select().from(messagesTable).orderBy(messagesTable.createdAt);
     if (!msgs.length) {
       await this.log("INFO", "No messages configured — add messages in the Messages tab");
       return;

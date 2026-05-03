@@ -919,7 +919,7 @@ export default function Dashboard() {
               <div className="text-center py-10 text-gray-600">
                 <IconChat size={32} />
                 <p className="text-sm mt-3">لا توجد رسائل بعد</p>
-                <p className="text-xs mt-1">أضف رسائل يختار منها البوت عشوائياً</p>
+                <p className="text-xs mt-1">أضف رسائلك أنت ليستخدمها البوت</p>
               </div>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -937,7 +937,7 @@ export default function Dashboard() {
             )}
 
             <p className="text-[10px] text-gray-600 border-t border-white/5 pt-3 flex items-center gap-1">
-              <IconShield size={11} /> البوت يختار رسالة عشوائية — نوّع الرسائل لتقليل احتمال الحظر
+              <IconShield size={11} /> هذه القائمة تحفظ رسائلك أنت فقط — البوت يختار منها عشوائياً
             </p>
           </div>
         )}
