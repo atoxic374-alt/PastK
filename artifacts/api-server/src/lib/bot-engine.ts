@@ -379,28 +379,30 @@ class KickBotEngine {
       await this.log("LOGIN", `User API: status=${raw?.status} preview=${JSON.stringify(raw?.data ?? {}).substring(0, 300)}`);
 
       const d = raw?.data;
-      const payload = d?.data ?? d?.user ?? d;
-      const username = payload?.username ?? payload?.user_name ?? payload?.name ?? d?.username ?? d?.user_name ?? null;
-      const email = payload?.email ?? d?.email ?? null;
-      const avatar = payload?.profile_pic ?? payload?.profile_image ?? d?.profile_pic ?? d?.profile_image ?? null;
-      const followersCount = payload?.followers_count ?? d?.followers_count ?? 0;
-      const followingCount = payload?.following_count ?? d?.following_count ?? 0;
-      const verified = payload?.is_verified ?? d?.is_verified ?? false;
+      const payload = d?.data ?? d?.user ?? d ?? {};
+      const keys = Object.keys(payload).join(",") || "none";
+      const username = payload.username ?? payload.user_name ?? payload.name ?? payload.handle ?? null;
+      const email = payload.email ?? null;
+      const avatar = payload.profile_pic ?? payload.profile_image ?? payload.avatar ?? null;
+      const followersCount = payload.followers_count ?? payload.followers ?? 0;
+      const followingCount = payload.following_count ?? payload.following ?? 0;
+      const verified = payload.is_verified ?? payload.verified ?? false;
 
-      if (username || email) {
+      if (username || email || raw?.status === 200) {
         this.account = {
-          username: username ?? email!.split("@")[0],
+          username: username ?? email?.split("@")[0] ?? "authenticated",
           email: email ?? undefined,
           avatar,
           followersCount,
           followingCount,
           verified,
         };
+        await this.log("LOGIN", `verifySession keys: ${keys}`);
         await this.log("ACCOUNT", `Authenticated as @${this.account.username} (Followers: ${this.account.followersCount})`);
         return true;
       }
 
-      await this.log("LOGIN", `verifySession keys: ${Object.keys(d ?? {}).join(",") || "none"}`);
+      await this.log("LOGIN", `verifySession keys: ${keys}`);
       await this.log("LOGIN", `verifySession: no username found in response — auth failed`);
     } catch (err: any) {
       await this.log("ERROR", `verifySession exception: ${err?.message}`);
